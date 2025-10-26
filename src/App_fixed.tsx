@@ -8,40 +8,38 @@ import Shops from "./pages/Shops";
 import ShopDetailPage from "./pages/ShopDetailPage";
 import Auth from "./pages/Auth";
 import ServicesPage from "./pages/ServicesPage";
-import ProfilePage from "@/pages/ProfilePage";
+import ProfilePage from "./pages/ProfilePage";
 import Dashboard from "./pages/Dashboard";
-import BookingDetailPage from "@/pages/BookingDetailPage"; // New
-import BookService from "./pages/BookService"; // New (assuming it wasn't routed)
+import BookingDetailPage from "../Web/src/pages/BookingDetailPage";
+import BookService from "./pages/BookService";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "./hooks/useAuth"; // New
+import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider> {/* Wrap with AuthProvider */}
-        <Toaster />
-        <Sonner />
+      <AuthProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/shops" element={<Shops />} />
-            <Route path="/shops/:id" element={<ShopDetailPage />} /> {/* New */}
-            <Route path="/services" element={<ServicesPage />} /> {/* New */}
-            <Route path="/book" element={<BookService />} /> {/* New - Ensure BookService exists */}
-            <Route path="/dashboard" element={<Dashboard />} /> {/* Assuming Dashboard exists */}
-            <Route path="/bookings/:id" element={<BookingDetailPage />} /> {/* New */}
-            <Route path="/profile" element={<ProfilePage />} /> {/* New */}
+            <Route path="/shops/:id" element={<ShopDetailPage />} />
             <Route path="/auth" element={<Auth />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/bookings/:id" element={<BookingDetailPage />} />
+            <Route path="/book-service" element={<BookService />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>
+      <Toaster />
+      <Sonner />
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
-

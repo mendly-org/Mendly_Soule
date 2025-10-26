@@ -1,19 +1,25 @@
 import { useState, useEffect } from "react";
-import Navbar from "@/components/Navbar";
-import SearchBar from "@/components/SearchBar";
-import ServiceCard from "@/components/ServiceCard";
-import ShopCard from "@/components/ShopCard";
-import { Button } from "@/components/ui/button";
-import { Shield, Clock, Award, ArrowRight, AlertCircle } from "lucide-react";
+// Replaced alias paths with relative paths
+import Navbar from "../components/Navbar";
+import SearchBar from "../components/SearchBar";
+import ServiceCard from "../components/ServiceCard";
+import ShopCard from "../components/ShopCard";
+import { Button } from "../components/ui/button";
+import { Shield, Clock, Award, ArrowRight, AlertCircle, Wrench } from "lucide-react"; // Added Wrench
 import { useNavigate } from "react-router-dom";
-import heroImage from "@/assets/hero-bg.jpg";
-import mobileRepairIcon from "@/assets/mobile-repair.png";
-import acRepairIcon from "@/assets/ac-repair.png";
-import laptopRepairIcon from "@/assets/laptop-repair.png";
-import { shopsAPI, servicesAPI } from "@/lib/api";
+// Replaced alias paths with relative paths
+import heroImage from "../assets/hero-bg.jpg";
+import mobileRepairIcon from "../assets/mobile-repair.png";
+import acRepairIcon from "../assets/ac-repair.png";
+import laptopRepairIcon from "../assets/laptop-repair.png";
+// Replaced alias paths with relative paths
+import { shopsAPI, servicesAPI } from "../lib/api";
 import { toast } from "sonner";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+// Replaced alias paths with relative paths
+import { Skeleton } from "../components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"; // Added AlertTitle import
+import { Card, CardContent } from "../components/ui/card"; // Added Card imports
+
 
 const Index = () => {
   const navigate = useNavigate();
@@ -21,6 +27,28 @@ const Index = () => {
   const [apiServices, setApiServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Default services for fallback
+  const defaultServices = [
+    {
+      id: 'default-1',
+      name: "Mobile Repair",
+      image: mobileRepairIcon,
+      description: "Screen replacement, battery issues, software problems",
+    },
+    {
+      id: 'default-2',
+      name: "AC Service",
+      image: acRepairIcon,
+      description: "Installation, repair, cleaning, and maintenance",
+    },
+    {
+      id: 'default-3',
+      name: "Laptop Repair",
+      image: laptopRepairIcon,
+      description: "Hardware upgrades, virus removal, performance tuning",
+    },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -33,42 +61,29 @@ const Index = () => {
 
       // Fetch shops and services in parallel
       const [shopsResponse, servicesResponse] = await Promise.all([
-        shopsAPI.list(new URLSearchParams({ is_verified: 'true', ordering: '-average_rating' })),
-        servicesAPI.list()
+        shopsAPI.list(new URLSearchParams({ is_verified: 'true', ordering: '-average_rating', limit: '3' })), // Limit to 3
+        servicesAPI.list(new URLSearchParams({ limit: '6' })) // Limit to 6
       ]);
 
       // Handle both paginated and non-paginated responses
       const shopsData = shopsResponse.results || shopsResponse || [];
       const servicesData = servicesResponse.results || servicesResponse || [];
 
-      setShops(shopsData.slice(0, 3)); // Top 3 shops
+      setShops(shopsData);
       setApiServices(servicesData);
     } catch (err: any) {
       console.error('API Error:', err);
-      setError(err.message || 'Failed to load data');
-      toast.error('Unable to connect to backend. Displaying sample data.');
+      // Use import.meta.env - the warning is acceptable for Vite projects
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+      setError(`Failed to load data from ${apiBaseUrl}. Displaying sample content.`);
+      toast.error(`Unable to connect to backend at ${apiBaseUrl}.`);
+      setShops([]); // Clear potentially faulty data
+      setApiServices([]); // Clear potentially faulty data
     } finally {
       setIsLoading(false);
     }
   };
 
-  const services = [
-    {
-      title: "Mobile Repair",
-      image: mobileRepairIcon,
-      description: "Screen replacement, battery issues, software problems",
-    },
-    {
-      title: "AC Service",
-      image: acRepairIcon,
-      description: "Installation, repair, cleaning, and maintenance",
-    },
-    {
-      title: "Laptop Repair",
-      image: laptopRepairIcon,
-      description: "Hardware upgrades, virus removal, performance tuning",
-    },
-  ];
 
   const features = [
     {
@@ -89,8 +104,16 @@ const Index = () => {
   ];
 
   const handleSearch = (query: string, location: string) => {
-    navigate(`/shops?search=${query}&location=${location}`);
+    // Construct search parameters, ensuring empty strings are handled
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    if (location) params.set('location', location);
+    navigate(`/shops?${params.toString()}`);
   };
+
+  // Determine which services to display
+  const displayServices = error || (apiServices.length === 0 && !isLoading) ? defaultServices : apiServices;
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,7 +124,7 @@ const Index = () => {
         <div className="absolute inset-0 opacity-10">
           <img src={heroImage} alt="Hero" className="w-full h-full object-cover" />
         </div>
-        
+
         <div className="container mx-auto px-4 py-20 relative">
           <div className="max-w-3xl mx-auto text-center mb-10">
             <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] bg-clip-text text-transparent">
@@ -138,11 +161,11 @@ const Index = () => {
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           {error && (
-            <Alert className="mb-8 border-yellow-500/50 bg-yellow-500/10 max-w-3xl mx-auto">
-              <AlertCircle className="h-4 w-4 text-yellow-500" />
-              <AlertDescription className="text-yellow-500">
-                Unable to connect to backend API at {import.meta.env.VITE_API_BASE_URL}. 
-                Please ensure the backend is running and CORS is properly configured.
+            <Alert variant="destructive" className="mb-8 max-w-3xl mx-auto">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>API Error</AlertTitle> {/* Added AlertTitle */}
+              <AlertDescription>
+                {error}
               </AlertDescription>
             </Alert>
           )}
@@ -159,32 +182,39 @@ const Index = () => {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-48 rounded-xl" />
-              ))}
-            </div>
-          ) : apiServices.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {apiServices.slice(0, 6).map((service: any) => (
-                <ServiceCard
-                  key={service.id}
-                  title={service.name}
-                  description={service.description || 'Professional repair service'}
-                  image={service.name.toLowerCase().includes('mobile') ? mobileRepairIcon : 
-                        service.name.toLowerCase().includes('ac') ? acRepairIcon : laptopRepairIcon}
-                  onClick={() => navigate(`/shops?service=${service.name}`)}
-                />
+                 <Card key={i} className="overflow-hidden border border-border">
+                    <CardContent className="p-6">
+                        <div className="relative mb-4 h-32 flex items-center justify-center bg-muted rounded-lg overflow-hidden">
+                           <Skeleton className="h-24 w-24"/>
+                        </div>
+                        <Skeleton className="h-6 w-3/4 mb-2"/>
+                        <Skeleton className="h-4 w-full mb-4"/>
+                        <Skeleton className="h-4 w-1/2"/>
+                    </CardContent>
+                 </Card>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {services.map((service, index) => (
-                <ServiceCard
-                  key={index}
-                  {...service}
-                  onClick={() => navigate(`/shops?service=${service.title}`)}
-                />
-              ))}
-            </div>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                {displayServices.map((service) => {
+                   // Determine image based on name for dynamic API services or use provided for defaults
+                   const imageSrc = service.image ? service.image :
+                       service.name.toLowerCase().includes('mobile') ? mobileRepairIcon :
+                       service.name.toLowerCase().includes('ac') ? acRepairIcon :
+                       service.name.toLowerCase().includes('laptop') ? laptopRepairIcon :
+                       'https://placehold.co/100x100/e2e8f0/adb5bd?text=?'; // Generic fallback
+
+                   return (
+                      <ServiceCard
+                        key={service.id}
+                        title={service.name}
+                        description={service.description || 'Professional repair service'}
+                        image={imageSrc}
+                        onClick={() => navigate(`/shops?service=${encodeURIComponent(service.name)}`)}
+                      />
+                   );
+                 })}
+             </div>
           )}
         </div>
       </section>
@@ -201,8 +231,8 @@ const Index = () => {
                 Trusted by thousands of customers
               </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => navigate("/shops")}
               className="hidden md:flex gap-2"
             >
@@ -214,34 +244,48 @@ const Index = () => {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-64 rounded-xl" />
+                 <Card key={i} className="overflow-hidden border border-border">
+                    <div className="relative h-48 bg-muted">
+                       <Skeleton className="w-full h-full" />
+                    </div>
+                    <CardContent className="p-4">
+                       <Skeleton className="h-6 w-3/4 mb-2"/>
+                       <Skeleton className="h-4 w-full mb-3"/>
+                       <div className="flex items-center justify-between text-sm">
+                          <Skeleton className="h-4 w-1/3"/>
+                          <Skeleton className="h-4 w-1/4"/>
+                       </div>
+                    </CardContent>
+                 </Card>
               ))}
             </div>
           ) : shops.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {shops.map((shop) => (
-                <ShopCard 
+                <ShopCard
                   key={shop.id}
                   id={shop.id}
                   name={shop.name}
                   description={shop.description}
                   city={shop.city}
                   state={shop.state}
-                  rating={shop.average_rating || 0}
+                  rating={shop.average_rating || 0} // Use average_rating
                   isOpen={shop.is_open}
                   isVerified={shop.is_verified}
+                  cover_image={shop.cover_image} // Pass cover_image
                 />
               ))}
             </div>
-          ) : (
+          ) : !error ? ( // Only show "No shops" if there wasn't an API error
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No shops available yet. Check back soon!</p>
+              <Wrench className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground text-lg">No featured shops available yet. Check back soon!</p>
             </div>
-          )}
+          ) : null /* Don't show "No shops" if there was an API error */}
 
           <div className="mt-8 text-center md:hidden">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => navigate("/shops")}
               className="gap-2"
             >
@@ -251,6 +295,7 @@ const Index = () => {
           </div>
         </div>
       </section>
+
 
       {/* Features Section */}
       <section className="py-20 bg-background">
@@ -298,7 +343,7 @@ const Index = () => {
             Join thousands of satisfied customers who trust Mendly for their repair needs
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
+            <Button
               variant="secondary"
               size="lg"
               onClick={() => navigate("/shops")}
@@ -306,7 +351,7 @@ const Index = () => {
             >
               Browse Shops
             </Button>
-            <Button 
+            <Button
               variant="outline"
               size="lg"
               onClick={() => navigate("/auth")}
@@ -331,14 +376,16 @@ const Index = () => {
             <div>
               <h4 className="font-semibold mb-4 text-foreground">Services</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary transition-colors">Mobile Repair</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">AC Service</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Laptop Repair</a></li>
+                <li><button onClick={() => navigate('/services')} className="hover:text-primary transition-colors text-left w-full">All Services</button></li>
+                <li><button onClick={() => navigate('/shops?service=Mobile%20Repair')} className="hover:text-primary transition-colors text-left w-full">Mobile Repair</button></li>
+                <li><button onClick={() => navigate('/shops?service=AC%20Service')} className="hover:text-primary transition-colors text-left w-full">AC Service</button></li>
+                <li><button onClick={() => navigate('/shops?service=Laptop%20Repair')} className="hover:text-primary transition-colors text-left w-full">Laptop Repair</button></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4 text-foreground">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
+                {/* Add links when About page is created */}
                 <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
@@ -353,7 +400,7 @@ const Index = () => {
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            © 2025 Mendly. All rights reserved.
+            © {new Date().getFullYear()} Mendly. All rights reserved.
           </div>
         </div>
       </footer>
@@ -362,3 +409,4 @@ const Index = () => {
 };
 
 export default Index;
+

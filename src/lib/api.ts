@@ -72,6 +72,9 @@ export const bookingsAPI = {
   list: (params?: URLSearchParams) =>
     apiClient(`/bookings/${params ? `?${params.toString()}` : ''}`),
   
+  get: (id: number) =>
+    apiClient(`/bookings/${id}/`),
+  
   create: (data: any) =>
     apiClient('/bookings/', { method: 'POST', body: JSON.stringify(data) }),
   
@@ -92,4 +95,14 @@ export const reviewsAPI = {
 export const offersAPI = {
   list: (params?: URLSearchParams) =>
     apiClient(`/offers/${params ? `?${params.toString()}` : ''}`),
+};
+
+// Account API
+export const accountAPI = {
+  getMe: () => apiClient('/auth/me/'),
+  update: (id: number, data: any) => 
+    apiClient(`/auth/users/${id}/`, { 
+      method: 'PATCH', 
+      body: JSON.stringify(data) 
+    }),
 };

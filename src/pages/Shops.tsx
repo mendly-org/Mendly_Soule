@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom"; // Added useNavigate
 import Navbar from "@/components/Navbar";
 import ShopCard from "@/components/ShopCard";
 import SearchBar from "@/components/SearchBar";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { SlidersHorizontal, AlertCircle } from "lucide-react";
+import { SlidersHorizontal, AlertCircle, MapPin } from "lucide-react"; // Added MapPin
 import { shopsAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,45 +16,97 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Shops = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate(); // Hook for navigation
   const [showFilters, setShowFilters] = useState(false);
   const [shops, setShops] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [sortBy, setSortBy] = useState("rating");
-  const [onlyVerified, setOnlyVerified] = useState(false);
-  const [onlyOpen, setOnlyOpen] = useState(false);
+
+  // Filter and Sort State - Initialize from URL params
+  const [sortBy, setSortBy] = useState(searchParams.get('ordering') || "rating"); // Default 'rating' corresponds to '-average_rating' later
+  const [onlyVerified, setOnlyVerified] = useState(searchParams.get('is_verified') === 'true');
+  const [onlyOpen, setOnlyOpen] = useState(searchParams.get('is_open') === 'true');
+  // Initialize search bar state from URL params as well
+  const [initialSearch, setInitialSearch] = useState(searchParams.get('search') || '');
+  const [initialLocation, setInitialLocation] = useState(searchParams.get('location') || searchParams.get('city') || '');
+  const [serviceFilter, setServiceFilter] = useState(searchParams.get('service') || '');
+
 
   useEffect(() => {
-    fetchShops();
-  }, [sortBy, onlyVerified, onlyOpen, searchParams]);
+    // Update state if URL parameters change externally (e.g., browser back/forward)
+     setSortBy(searchParams.get('ordering') || "rating");
+     setOnlyVerified(searchParams.get('is_verified') === 'true');
+     setOnlyOpen(searchParams.get('is_open') === 'true');
+     setInitialSearch(searchParams.get('search') || '');
+     setInitialLocation(searchParams.get('location') || searchParams.get('city') || '');
+     setServiceFilter(searchParams.get('service') || '');
+     fetchShops();
+  }, [searchParams]); // Re-fetch when searchParams change
+
+    // Update URL when filters change
+   useEffect(() => {
+     const params = new URLSearchParams(searchParams);
+     if (sortBy === 'rating') params.set('ordering', '-average_rating');
+     else if (sortBy === 'name') params.set('ordering', 'name');
+     else params.delete('ordering');
+
+     if (onlyVerified) params.set('is_verified', 'true'); else params.delete('is_verified');
+     if (onlyOpen) params.set('is_open', 'true'); else params.delete('is_open');
+
+      // Keep existing search/location/service params
+     const search = params.get('search');
+     const location = params.get('location') || params.get('city');
+     const service = params.get('service');
+
+     if(search) params.set('search', search); else params.delete('search');
+     if(location) params.set('location', location); else { params.delete('location'); params.delete('city'); }
+     if(service) params.set('service', service); else params.delete('service');
+
+
+     // Use navigate to update URL without full reload (replace: true prevents history spam)
+     navigate(`?${params.toString()}`, { replace: true });
+     // fetchShops is called by the useEffect watching searchParams
+
+   }, [sortBy, onlyVerified, onlyOpen, navigate]); // Depend on filter states
 
   const fetchShops = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const params = new URLSearchParams();
-      
-      // Apply filters
-      if (onlyVerified) params.append('is_verified', 'true');
-      if (onlyOpen) params.append('is_open', 'true');
-      
-      // Apply sorting
-      if (sortBy === 'rating') params.append('ordering', '-average_rating');
-      if (sortBy === 'name') params.append('ordering', 'name');
-      
-      // Apply search params from URL
-      const search = searchParams.get('search');
-      const location = searchParams.get('location');
-      if (search) params.append('search', search);
-      if (location) params.append('city', location);
+      const params = new URLSearchParams(searchParams); // Use current URL params
+
+      // Ensure sorting param matches API expectation
+      if (params.get('ordering') === 'rating') {
+          params.set('ordering', '-average_rating');
+      }
+
+      // If location param exists, use it for city filter if city not already set
+      const location = params.get('location');
+      if (location && !params.has('city')) {
+          params.set('city', location);
+          params.delete('location'); // Clean up - use 'city' consistently if that's the API param
+      }
+
+      // If service param exists, add it to the search query for the API
+      // Note: Adapt this if your API has a dedicated 'service_name' or 'service_id' filter
+      const service = params.get('service');
+      const currentSearch = params.get('search') || '';
+      if (service) {
+         params.set('search', `${currentSearch} ${service}`.trim());
+         // Don't delete 'service' param from URL, keep it for user clarity maybe?
+         // params.delete('service');
+      }
+
+
+      console.log("Fetching shops with params:", params.toString()); // Debugging
 
       const response = await shopsAPI.list(params);
       setShops(response.results || response || []);
     } catch (err: any) {
       console.error('Failed to fetch shops:', err);
-      setError(err.message || 'Failed to load shops');
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+      setError(`Failed to load shops from ${apiBaseUrl}. Ensure it's running and CORS is configured.`);
       toast.error('Failed to load shops from server');
       setShops([]);
     } finally {
@@ -63,20 +115,41 @@ const Shops = () => {
   };
 
   const handleSearch = (query: string, location: string) => {
-    setSearchParams({ search: query, location });
+      // Update URL parameters, which triggers the useEffect to re-fetch
+      const newParams = new URLSearchParams(searchParams);
+      if (query) newParams.set('search', query); else newParams.delete('search');
+      if (location) {
+          newParams.set('location', location); // Keep 'location' for consistency with search bar
+          newParams.delete('city'); // Remove city if location is set
+      } else {
+          newParams.delete('location');
+      }
+
+      // Keep service filter if it exists
+      const currentService = newParams.get('service');
+      if (currentService) newParams.set('service', currentService); else newParams.delete('service');
+
+
+      setSearchParams(newParams);
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Header */}
+      {/* Header & Search */}
       <section className="bg-gradient-to-br from-accent via-background to-muted py-12 border-b border-border">
         <div className="container mx-auto px-4">
           <h1 className="text-4xl font-bold mb-6 bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] bg-clip-text text-transparent">
             Find the Perfect Repair Shop
           </h1>
-          <SearchBar onSearch={handleSearch} />
+          {/* Pass initial values from URL params to SearchBar */}
+          <SearchBar
+              key={`${initialSearch}-${initialLocation}`} // Force re-render if params change
+              initialQuery={initialSearch}
+              initialLocation={initialLocation}
+              onSearch={handleSearch}
+          />
         </div>
       </section>
 
@@ -105,11 +178,12 @@ const Shops = () => {
                     <Label className="mb-2 block">Sort By</Label>
                     <Select value={sortBy} onValueChange={setSortBy}>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select sorting"/>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="rating">Highest Rated</SelectItem>
                         <SelectItem value="name">Name (A-Z)</SelectItem>
+                         {/* Add more sort options if API supports */}
                       </SelectContent>
                     </Select>
                   </div>
@@ -134,15 +208,23 @@ const Shops = () => {
                     />
                   </div>
 
-                  {/* Price Range - Mock for now */}
-                  <div>
+                   {/* Add Service Type Filter if needed */}
+                   {/* <div>
+                       <Label className="mb-2 block">Service Type</Label>
+                       <Input placeholder="e.g., Screen Repair" value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} />
+                       <Button size="sm" variant="outline" className="mt-2" onClick={() => updateServiceFilter(serviceFilter)}>Apply</Button>
+                   </div> */}
+
+
+                  {/* Price Range - Mock */}
+                  {/* <div>
                     <Label className="mb-2 block">Price Range</Label>
-                    <Slider defaultValue={[0, 100]} max={100} step={10} />
+                    <Slider defaultValue={[0, 100]} max={100} step={10} disabled/>
                     <div className="flex justify-between text-xs text-muted-foreground mt-2">
                       <span>₹0</span>
                       <span>₹5000+</span>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
@@ -150,62 +232,68 @@ const Shops = () => {
             {/* Shops Grid */}
             <div className="flex-1">
               {error && (
-                <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
-                  <AlertCircle className="h-4 w-4 text-yellow-500" />
-                  <AlertDescription className="text-yellow-500">
-                    Unable to connect to backend API. Please ensure CORS is enabled on {import.meta.env.VITE_API_BASE_URL}
-                  </AlertDescription>
+                <Alert variant="destructive" className="mb-6">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
               <div className="mb-4 text-muted-foreground">
-                {isLoading ? 'Loading...' : `${shops.length} shops found`}
+                {isLoading ? 'Loading shops...' : `${shops.length} shop${shops.length !== 1 ? 's' : ''} found`}
               </div>
-              
+
               {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                   {[1, 2, 3, 4, 5, 6].map((i) => (
-                    <Skeleton key={i} className="h-64 rounded-xl" />
+                    <Skeleton key={i} className="h-[300px] rounded-xl" /> // Match ShopCard approx height
                   ))}
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {shops.map((shop) => (
-                      <ShopCard 
-                        key={shop.id}
-                        id={shop.id}
-                        name={shop.name}
-                        description={shop.description}
-                        city={shop.city}
-                        state={shop.state}
-                        rating={shop.average_rating || shop.rating || 0}
-                        isOpen={shop.is_open}
-                        isVerified={shop.is_verified}
-                      />
-                    ))}
-                  </div>
-
-                  {shops.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-muted-foreground text-lg">
-                        No shops found matching your criteria
+                  {shops.length > 0 ? (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                        {shops.map((shop) => (
+                          <ShopCard
+                            key={shop.id}
+                            id={shop.id}
+                            name={shop.name}
+                            description={shop.description}
+                            city={shop.city}
+                            state={shop.state}
+                            rating={shop.average_rating || 0} // Use average_rating
+                            isOpen={shop.is_open}
+                            isVerified={shop.is_verified}
+                            cover_image={shop.cover_image} // Pass cover_image
+                          />
+                        ))}
+                     </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <MapPin className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground text-lg mb-4">
+                        No shops found matching your criteria.
                       </p>
                       <Button
                         variant="outline"
-                        className="mt-4"
                         onClick={() => {
+                          // Reset state and URL params
+                          setSortBy("rating");
                           setOnlyVerified(false);
                           setOnlyOpen(false);
+                          setInitialSearch('');
+                          setInitialLocation('');
                           setSearchParams({});
                         }}
                       >
-                        Clear Filters
+                        Clear Filters & Search
                       </Button>
                     </div>
                   )}
                 </>
               )}
+
+                {/* Optional: Add Pagination if API supports it */}
+
             </div>
           </div>
         </div>
