@@ -8,106 +8,62 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, AlertCircle } from "lucide-react";
+import { shopsAPI } from "@/lib/api";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Shops = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [showFilters, setShowFilters] = useState(false);
+  const [shops, setShops] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Mock shops data - TODO: Connect to API
-  const mockShops = [
-    {
-      id: 1,
-      name: "TechFix Solutions",
-      description: "Expert mobile and laptop repairs with 10+ years experience. Same-day service available.",
-      city: "Bangalore",
-      state: "Karnataka",
-      rating: 4.8,
-      isOpen: true,
-      isVerified: true,
-    },
-    {
-      id: 2,
-      name: "Cool Air Services",
-      description: "AC installation, repair, and maintenance specialists with certified technicians",
-      city: "Mumbai",
-      state: "Maharashtra",
-      rating: 4.6,
-      isOpen: true,
-      isVerified: true,
-    },
-    {
-      id: 3,
-      name: "SmartDevice Clinic",
-      description: "Premium electronics repair with same-day service and warranty on all repairs",
-      city: "Delhi",
-      state: "Delhi",
-      rating: 4.9,
-      isOpen: false,
-      isVerified: true,
-    },
-    {
-      id: 4,
-      name: "Quick Repair Hub",
-      description: "Fast and reliable repairs for all your electronic devices",
-      city: "Bangalore",
-      state: "Karnataka",
-      rating: 4.5,
-      isOpen: true,
-      isVerified: false,
-    },
-    {
-      id: 5,
-      name: "Elite Tech Service",
-      description: "Professional tech repair services with affordable pricing",
-      city: "Mumbai",
-      state: "Maharashtra",
-      rating: 4.7,
-      isOpen: true,
-      isVerified: true,
-    },
-    {
-      id: 6,
-      name: "Digital Solutions Pro",
-      description: "Complete electronics repair and maintenance services",
-      city: "Hyderabad",
-      state: "Telangana",
-      rating: 4.4,
-      isOpen: true,
-      isVerified: false,
-    },
-  ];
-
-  const [shops, setShops] = useState(mockShops);
   const [sortBy, setSortBy] = useState("rating");
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [onlyOpen, setOnlyOpen] = useState(false);
 
   useEffect(() => {
-    // TODO: Fetch from API based on filters
-    let filtered = [...mockShops];
+    fetchShops();
+  }, [sortBy, onlyVerified, onlyOpen, searchParams]);
 
-    if (onlyVerified) {
-      filtered = filtered.filter(shop => shop.isVerified);
+  const fetchShops = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      
+      // Apply filters
+      if (onlyVerified) params.append('is_verified', 'true');
+      if (onlyOpen) params.append('is_open', 'true');
+      
+      // Apply sorting
+      if (sortBy === 'rating') params.append('ordering', '-average_rating');
+      if (sortBy === 'name') params.append('ordering', 'name');
+      
+      // Apply search params from URL
+      const search = searchParams.get('search');
+      const location = searchParams.get('location');
+      if (search) params.append('search', search);
+      if (location) params.append('city', location);
+
+      const response = await shopsAPI.list(params);
+      setShops(response.results || response || []);
+    } catch (err: any) {
+      console.error('Failed to fetch shops:', err);
+      setError(err.message || 'Failed to load shops');
+      toast.error('Failed to load shops from server');
+      setShops([]);
+    } finally {
+      setIsLoading(false);
     }
-
-    if (onlyOpen) {
-      filtered = filtered.filter(shop => shop.isOpen);
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      if (sortBy === "rating") return b.rating - a.rating;
-      if (sortBy === "name") return a.name.localeCompare(b.name);
-      return 0;
-    });
-
-    setShops(filtered);
-  }, [sortBy, onlyVerified, onlyOpen]);
+  };
 
   const handleSearch = (query: string, location: string) => {
     setSearchParams({ search: query, location });
-    // TODO: Fetch from API with search params
   };
 
   return (
@@ -193,32 +149,62 @@ const Shops = () => {
 
             {/* Shops Grid */}
             <div className="flex-1">
+              {error && (
+                <Alert className="mb-6 border-yellow-500/50 bg-yellow-500/10">
+                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  <AlertDescription className="text-yellow-500">
+                    Unable to connect to backend API. Please ensure CORS is enabled on {import.meta.env.VITE_API_BASE_URL}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="mb-4 text-muted-foreground">
-                {shops.length} shops found
+                {isLoading ? 'Loading...' : `${shops.length} shops found`}
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {shops.map((shop) => (
-                  <ShopCard key={shop.id} {...shop} />
-                ))}
-              </div>
-
-              {shops.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground text-lg">
-                    No shops found matching your criteria
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={() => {
-                      setOnlyVerified(false);
-                      setOnlyOpen(false);
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <Skeleton key={i} className="h-64 rounded-xl" />
+                  ))}
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {shops.map((shop) => (
+                      <ShopCard 
+                        key={shop.id}
+                        id={shop.id}
+                        name={shop.name}
+                        description={shop.description}
+                        city={shop.city}
+                        state={shop.state}
+                        rating={shop.average_rating || shop.rating || 0}
+                        isOpen={shop.is_open}
+                        isVerified={shop.is_verified}
+                      />
+                    ))}
+                  </div>
+
+                  {shops.length === 0 && (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground text-lg">
+                        No shops found matching your criteria
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => {
+                          setOnlyVerified(false);
+                          setOnlyOpen(false);
+                          setSearchParams({});
+                        }}
+                      >
+                        Clear Filters
+                      </Button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

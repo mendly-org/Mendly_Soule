@@ -1,51 +1,56 @@
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
 import ServiceCard from "@/components/ServiceCard";
 import ShopCard from "@/components/ShopCard";
 import { Button } from "@/components/ui/button";
-import { Shield, Clock, Award, ArrowRight } from "lucide-react";
+import { Shield, Clock, Award, ArrowRight, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-bg.jpg";
 import mobileRepairIcon from "@/assets/mobile-repair.png";
 import acRepairIcon from "@/assets/ac-repair.png";
 import laptopRepairIcon from "@/assets/laptop-repair.png";
+import { shopsAPI, servicesAPI } from "@/lib/api";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [shops, setShops] = useState<any[]>([]);
+  const [apiServices, setApiServices] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - will be replaced with API calls
-  const mockShops = [
-    {
-      id: 1,
-      name: "TechFix Solutions",
-      description: "Expert mobile and laptop repairs with 10+ years experience",
-      city: "Bangalore",
-      state: "Karnataka",
-      rating: 4.8,
-      isOpen: true,
-      isVerified: true,
-    },
-    {
-      id: 2,
-      name: "Cool Air Services",
-      description: "AC installation, repair, and maintenance specialists",
-      city: "Mumbai",
-      state: "Maharashtra",
-      rating: 4.6,
-      isOpen: true,
-      isVerified: true,
-    },
-    {
-      id: 3,
-      name: "SmartDevice Clinic",
-      description: "Premium electronics repair with same-day service",
-      city: "Delhi",
-      state: "Delhi",
-      rating: 4.9,
-      isOpen: false,
-      isVerified: true,
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch shops and services in parallel
+      const [shopsResponse, servicesResponse] = await Promise.all([
+        shopsAPI.list(new URLSearchParams({ is_verified: 'true', ordering: '-average_rating' })),
+        servicesAPI.list()
+      ]);
+
+      // Handle both paginated and non-paginated responses
+      const shopsData = shopsResponse.results || shopsResponse || [];
+      const servicesData = servicesResponse.results || servicesResponse || [];
+
+      setShops(shopsData.slice(0, 3)); // Top 3 shops
+      setApiServices(servicesData);
+    } catch (err: any) {
+      console.error('API Error:', err);
+      setError(err.message || 'Failed to load data');
+      toast.error('Unable to connect to backend. Displaying sample data.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const services = [
     {
@@ -132,6 +137,16 @@ const Index = () => {
       {/* Services Section */}
       <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
+          {error && (
+            <Alert className="mb-8 border-yellow-500/50 bg-yellow-500/10 max-w-3xl mx-auto">
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+              <AlertDescription className="text-yellow-500">
+                Unable to connect to backend API at {import.meta.env.VITE_API_BASE_URL}. 
+                Please ensure the backend is running and CORS is properly configured.
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4 text-foreground">
               Popular Services
@@ -141,15 +156,36 @@ const Index = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {services.map((service, index) => (
-              <ServiceCard
-                key={index}
-                {...service}
-                onClick={() => navigate(`/shops?service=${service.title}`)}
-              />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-48 rounded-xl" />
+              ))}
+            </div>
+          ) : apiServices.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {apiServices.slice(0, 6).map((service: any) => (
+                <ServiceCard
+                  key={service.id}
+                  title={service.name}
+                  description={service.description || 'Professional repair service'}
+                  image={service.name.toLowerCase().includes('mobile') ? mobileRepairIcon : 
+                        service.name.toLowerCase().includes('ac') ? acRepairIcon : laptopRepairIcon}
+                  onClick={() => navigate(`/shops?service=${service.name}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+              {services.map((service, index) => (
+                <ServiceCard
+                  key={index}
+                  {...service}
+                  onClick={() => navigate(`/shops?service=${service.title}`)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -175,11 +211,33 @@ const Index = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mockShops.map((shop) => (
-              <ShopCard key={shop.id} {...shop} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-64 rounded-xl" />
+              ))}
+            </div>
+          ) : shops.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {shops.map((shop) => (
+                <ShopCard 
+                  key={shop.id}
+                  id={shop.id}
+                  name={shop.name}
+                  description={shop.description}
+                  city={shop.city}
+                  state={shop.state}
+                  rating={shop.average_rating || 0}
+                  isOpen={shop.is_open}
+                  isVerified={shop.is_verified}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No shops available yet. Check back soon!</p>
+            </div>
+          )}
 
           <div className="mt-8 text-center md:hidden">
             <Button 
