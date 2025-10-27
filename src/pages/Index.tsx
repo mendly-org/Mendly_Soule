@@ -121,7 +121,7 @@ const Index = () => {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-accent via-background to-muted">
-        <div className="absolute inset-0 opacity-10">
+        <div className="absolute inset-0 opacity-30">
           <img src={heroImage} alt="Hero" className="w-full h-full object-cover" />
         </div>
 

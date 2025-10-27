@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { authAPI } from "@/lib/api"; // Keep authAPI for login/signup
 import { useAuth } from "@/hooks/useAuth";
@@ -23,7 +22,7 @@ const signupSchema = z.object({
   phone_number: z.string().regex(/^\+?[1-9]\d{9,14}$/, "Invalid phone number (e.g., +919876543210)"),
 });
 
-const Auth = () => {
+const Auth = ({ theme = "light" }) => {
   const navigate = useNavigate();
   const location = useLocation(); // Get location state
   const { login, isAuthenticated, isLoading: isAuthLoading } = useAuth(); // Get login function and auth state
@@ -128,12 +127,23 @@ const Auth = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="bg-gradient-to-br from-primary to-[hsl(var(--primary-glow))] p-3 rounded-xl">
-            <Wrench className="h-8 w-8 text-primary-foreground" />
-          </div>
-          <span className="text-3xl font-bold bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] bg-clip-text text-transparent">
-            Mendly
-          </span>
+         
+         <span className="flex items-center font-bold text-3xl">
+              <span
+                className={
+                  theme === "light" ? "text-[#3bb4ff]" : "text-[#5ec8ff]"
+                }
+              >
+                MEND
+              </span>
+              <span
+                className={
+                  theme === "light" ? "text-[#4ea4d9]" : "text-[#d0d2db]"
+                }
+              >
+                LY
+              </span>
+            </span>
         </div>
 
         <Card className="shadow-[var(--shadow-card-hover)] border-border">
