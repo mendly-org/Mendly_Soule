@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal, AlertCircle, MapPin } from "lucide-react"; // Added MapPin
-import { shopsAPI } from "@/lib/api";
+import { shopsAPI, shopServicesAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -74,35 +74,88 @@ const Shops = () => {
       setIsLoading(true);
       setError(null);
 
-      const params = new URLSearchParams(searchParams); // Use current URL params
+      const serviceParam = searchParams.get('service');
 
-      // Ensure sorting param matches API expectation
-      if (params.get('ordering') === 'rating') {
+      // If filtering by service, fetch shops through shop-services endpoint
+      if (serviceParam) {
+        const shopServicesParams = new URLSearchParams();
+        shopServicesParams.set('is_available', 'true');
+        
+        // Try to match service by name (search parameter)
+        shopServicesParams.set('search', serviceParam);
+
+        console.log("Fetching shop-services with params:", shopServicesParams.toString());
+        
+        const shopServicesResponse = await shopServicesAPI.list(shopServicesParams);
+        const shopServices = shopServicesResponse.results || shopServicesResponse || [];
+        
+        // Extract unique shops from shop services
+        const uniqueShopsMap = new Map();
+        shopServices.forEach((shopService: any) => {
+          if (shopService.shop && !uniqueShopsMap.has(shopService.shop.id)) {
+            uniqueShopsMap.set(shopService.shop.id, shopService.shop);
+          }
+        });
+        
+        let shopsFromServices = Array.from(uniqueShopsMap.values());
+        
+        // Apply additional filters
+        const verifiedFilter = searchParams.get('is_verified') === 'true';
+        const openFilter = searchParams.get('is_open') === 'true';
+        const searchQuery = searchParams.get('search');
+        const locationQuery = searchParams.get('location') || searchParams.get('city');
+        
+        if (verifiedFilter) {
+          shopsFromServices = shopsFromServices.filter((shop: any) => shop.is_verified);
+        }
+        if (openFilter) {
+          shopsFromServices = shopsFromServices.filter((shop: any) => shop.is_open);
+        }
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          shopsFromServices = shopsFromServices.filter((shop: any) => 
+            shop.name?.toLowerCase().includes(query) || 
+            shop.description?.toLowerCase().includes(query)
+          );
+        }
+        if (locationQuery) {
+          const location = locationQuery.toLowerCase();
+          shopsFromServices = shopsFromServices.filter((shop: any) => 
+            shop.city?.toLowerCase().includes(location) || 
+            shop.state?.toLowerCase().includes(location)
+          );
+        }
+        
+        // Apply sorting
+        const ordering = searchParams.get('ordering');
+        if (ordering === '-average_rating' || searchParams.get('ordering') === 'rating') {
+          shopsFromServices.sort((a: any, b: any) => (b.average_rating || 0) - (a.average_rating || 0));
+        } else if (ordering === 'name') {
+          shopsFromServices.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
+        }
+        
+        setShops(shopsFromServices);
+      } else {
+        // Normal shop listing without service filter
+        const params = new URLSearchParams(searchParams);
+
+        // Ensure sorting param matches API expectation
+        if (params.get('ordering') === 'rating') {
           params.set('ordering', '-average_rating');
-      }
+        }
 
-      // If location param exists, use it for city filter if city not already set
-      const location = params.get('location');
-      if (location && !params.has('city')) {
+        // If location param exists, use it for city filter
+        const location = params.get('location');
+        if (location && !params.has('city')) {
           params.set('city', location);
-          params.delete('location'); // Clean up - use 'city' consistently if that's the API param
+          params.delete('location');
+        }
+
+        console.log("Fetching shops with params:", params.toString());
+
+        const response = await shopsAPI.list(params);
+        setShops(response.results || response || []);
       }
-
-      // If service param exists, add it to the search query for the API
-      // Note: Adapt this if your API has a dedicated 'service_name' or 'service_id' filter
-      const service = params.get('service');
-      const currentSearch = params.get('search') || '';
-      if (service) {
-         params.set('search', `${currentSearch} ${service}`.trim());
-         // Don't delete 'service' param from URL, keep it for user clarity maybe?
-         // params.delete('service');
-      }
-
-
-      console.log("Fetching shops with params:", params.toString()); // Debugging
-
-      const response = await shopsAPI.list(params);
-      setShops(response.results || response || []);
     } catch (err: any) {
       console.error('Failed to fetch shops:', err);
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
