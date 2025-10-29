@@ -4,15 +4,17 @@ import Navbar from '@/components/Navbar';
 import { servicesAPI } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Wrench } from 'lucide-react';
+import { AlertCircle, Wrench, Search } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import ServiceCard from '@/components/ServiceCard';
 
 const ServicesPage = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const categoryFilter = searchParams.get('category');
+  const searchQuery = searchParams.get('search') || '';
   const [services, setServices] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [allCategories, setAllCategories] = useState<any[]>([]);
@@ -22,41 +24,48 @@ const ServicesPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, [categoryFilter]);
+  }, [searchQuery, categoryFilter]);
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Fetch categories and services in parallel
-      const [categoriesResponse, servicesResponse] = await Promise.all([
-        servicesAPI.categories(),
-        servicesAPI.list()
-      ]);
-      
+
+      // Fetch categories first
+      const categoriesResponse = await servicesAPI.categories();
       const fetchedCategories = categoriesResponse || [];
-      const fetchedServices = servicesResponse.results || servicesResponse || [];
-      
       setAllCategories(fetchedCategories);
-      
-      // Filter services if category is selected
-      let filteredServices = fetchedServices;
+
+      // Build params for services fetch
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
       if (categoryFilter) {
-        const selectedCategory = fetchedCategories.find(
-          (cat: any) => cat.name.toLowerCase() === categoryFilter.toLowerCase()
-        );
-        if (selectedCategory) {
-          filteredServices = fetchedServices.filter(
-            (service: any) => service.category?.id === selectedCategory.id
-          );
+        const matched = fetchedCategories.find((c: any) => c.name?.toLowerCase() === categoryFilter.toLowerCase());
+        if (matched?.id) {
+          params.append('category', String(matched.id));
         }
       }
-      
-      setServices(filteredServices);
 
-      // Group filtered services by category
-      const groupedCategories = filteredServices.reduce((acc: any, service: any) => {
+      // Fetch services
+      const servicesResponse = await servicesAPI.list(params);
+      
+      // Handle both paginated response and direct array response
+      let fetchedServices;
+      if (Array.isArray(servicesResponse)) {
+        // Direct array response (from search endpoint)
+        fetchedServices = servicesResponse;
+      } else if (servicesResponse.results) {
+        // Paginated response
+        fetchedServices = servicesResponse.results;
+      } else {
+        // Fallback to empty array
+        fetchedServices = [];
+      }
+      
+      setServices(fetchedServices);
+
+      // Group services by category
+      const groupedCategories = fetchedServices.reduce((acc: any, service: any) => {
         const categoryId = service.category?.id;
         if (!categoryId) return acc;
 
@@ -69,6 +78,7 @@ const ServicesPage = () => {
         acc[categoryId].services.push(service);
         return acc;
       }, {});
+
       setCategories(Object.values(groupedCategories));
 
     } catch (err: any) {
@@ -87,22 +97,69 @@ const ServicesPage = () => {
       {/* Header */}
       <section className="bg-gradient-to-br from-accent via-background to-muted py-12 border-b border-border">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-[hsl(var(--primary-gloss))] bg-clip-text text-transparent">
             {categoryFilter ? `${categoryFilter} Services` : 'Our Services'}
+            {searchQuery && `: Results for "${searchQuery}"`}
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            {categoryFilter 
-              ? `Browse all ${categoryFilter.toLowerCase()} repair services`
-              : 'Explore the wide range of repair services offered by verified shops on Mendly.'}
+            {searchQuery 
+              ? `Showing results for "${searchQuery}"${categoryFilter ? ` in ${categoryFilter}` : ''}`
+              : categoryFilter 
+                ? `Browse all ${categoryFilter.toLowerCase()} repair services`
+                : 'Explore the wide range of repair services offered by verified shops on Mendly.'}
           </p>
+          
+          {/* Search Bar */}
+          <div className="mt-6 max-w-2xl relative">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search services..."
+                className="w-full pl-10 pr-4 py-2 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                value={searchQuery}
+                onChange={(e) => {
+                  const newSearch = e.target.value;
+                  const params = new URLSearchParams(searchParams);
+                  if (newSearch) {
+                    params.set('search', newSearch);
+                  } else {
+                    params.delete('search');
+                  }
+                  setSearchParams(params);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    fetchData();
+                  }
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams);
+                    params.delete('search');
+                    setSearchParams(params);
+                  }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+          </div>
           
           {/* Category Pills */}
           {allCategories.length > 0 && (
             <div className="mt-6 flex flex-wrap gap-2">
               <Button
-                variant={!categoryFilter ? "default" : "outline"}
+                variant={!categoryFilter && !searchQuery ? "default" : "outline"}
                 size="sm"
-                onClick={() => navigate('/services')}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (searchQuery) params.set('search', searchQuery);
+                  navigate(`/services?${params.toString()}`);
+                }}
                 className="rounded-full"
               >
                 All Categories
@@ -112,7 +169,12 @@ const ServicesPage = () => {
                   key={cat.id}
                   variant={categoryFilter === cat.name ? "default" : "outline"}
                   size="sm"
-                  onClick={() => navigate(`/services?category=${encodeURIComponent(cat.name)}`)}
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set('category', cat.name);
+                    if (searchQuery) params.set('search', searchQuery);
+                    navigate(`/services?${params.toString()}`);
+                  }}
                   className="rounded-full"
                 >
                   {cat.name}
@@ -167,18 +229,13 @@ const ServicesPage = () => {
                   <h2 className="text-2xl font-semibold mb-4 text-foreground border-b pb-2">{category.name}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {category.services.map((service: any) => (
-                      <Card
+                      <ServiceCard
                         key={service.id}
-                        className="group cursor-pointer hover:shadow-[var(--shadow-card-hover)] transition-all duration-300"
-                        onClick={() => navigate(`/shops?service=${encodeURIComponent(service.name)}`)}
-                      >
-                        <CardHeader>
-                          <CardTitle className="group-hover:text-primary transition-colors">{service.name}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <CardDescription>{service.description || 'Find shops offering this service.'}</CardDescription>
-                        </CardContent>
-                      </Card>
+                        title={service.name}
+                        description={service.description || 'Professional repair service'}
+                        image={service.image || 'https://placehold.co/100x100/e2e8f0/adb5bd?text=Service'}
+                        serviceId={service.id}
+                      />
                     ))}
                   </div>
                 </div>
@@ -192,4 +249,3 @@ const ServicesPage = () => {
 };
 
 export default ServicesPage;
-

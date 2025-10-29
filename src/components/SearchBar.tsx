@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaSearch } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 interface Category {
   id: number;
@@ -42,10 +43,20 @@ const SearchBar = ({
     fetchCategories();
   }, []);
 
-  const handleSearch = () => {
-    if (query.trim() || location.trim()) {
-      onSearch?.(query, location);
+  const navigate = useNavigate();
+
+  const handleSearch = async () => {
+    if (query.trim()) {
+      // If there's a query, navigate to services page with search
+      navigate(`/services?search=${encodeURIComponent(query.trim())}`);
+    } else if (location.trim()) {
+      // If only location is provided, navigate to shops with location
+      navigate(`/shops?location=${encodeURIComponent(location.trim())}`);
     }
+    
+    // Call the onSearch prop if provided (for any parent component that might be using it)
+    onSearch?.(query, location);
+    
     setOpen(false);
   };
 
@@ -66,6 +77,9 @@ const SearchBar = ({
   const handleSelect = (categoryName: string) => {
     setQuery(categoryName);
     setOpen(false);
+    // Navigate to services page with the selected category as search
+    navigate(`/services?search=${encodeURIComponent(categoryName)}`);
+    // Call the onSearch prop if provided
     onSearch?.(categoryName, location);
   };
 

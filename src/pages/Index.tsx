@@ -1,26 +1,21 @@
 import { useState, useEffect } from "react";
-// Replaced alias paths with relative paths
-import Navbar from "../components/Navbar";
-import SearchBar from "../components/SearchBar";
-import ServiceCard from "../components/ServiceCard";
-import ShopCard from "../components/ShopCard";
-import PopularCategories from "../components/PopularCategories";
-import { Button } from "../components/ui/button";
-import { Shield, Clock, Award, ArrowRight, AlertCircle, Wrench } from "lucide-react"; // Added Wrench
+import Navbar from "@/components/Navbar";
+import SearchBar from "@/components/SearchBar";
+import ServiceCard from "@/components/ServiceCard";
+import ShopCard from "@/components/ShopCard";
+import PopularCategories from "@/components/PopularCategories";
+import { Button } from "@/components/ui/button";
+import { Shield, Clock, Award, ArrowRight, AlertCircle, Wrench } from "lucide-react"; 
 import { useNavigate } from "react-router-dom";
-// Replaced alias paths with relative paths
-import heroImage from "../assets/hero-bg.jpg";
-import mobileRepairIcon from "../assets/mobile-repair.png";
-import acRepairIcon from "../assets/ac-repair.png";
-import laptopRepairIcon from "../assets/laptop-repair.png";
-// Replaced alias paths with relative paths
-import { shopsAPI, servicesAPI } from "../lib/api";
+import heroImage from "@/assets/hero-bg.jpg";
+import mobileRepairIcon from "@/assets/mobile-repair.png";
+import acRepairIcon from "@/assets/ac-repair.png";
+import laptopRepairIcon from "@/assets/laptop-repair.png";
+import { shopsAPI, servicesAPI } from "@/lib/api";
 import { toast } from "sonner";
-// Replaced alias paths with relative paths
-import { Skeleton } from "../components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "../components/ui/alert"; // Added AlertTitle import
-import { Card, CardContent } from "../components/ui/card"; // Added Card imports
-
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
+import { Card, CardContent } from "@/components/ui/card"; 
 
 const Index = () => {
   const navigate = useNavigate();
@@ -28,8 +23,7 @@ const Index = () => {
   const [apiServices, setApiServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Default services for fallback
+  
   const defaultServices = [
     {
       id: 'default-1',
@@ -62,8 +56,8 @@ const Index = () => {
 
       // Fetch shops and services in parallel
       const [shopsResponse, servicesResponse] = await Promise.all([
-        shopsAPI.list(new URLSearchParams({ is_verified: 'true', ordering: '-average_rating', limit: '3' })), // Limit to 3
-        servicesAPI.list(new URLSearchParams({ limit: '6' })) // Limit to 6
+        shopsAPI.list(new URLSearchParams({ is_verified: 'true', ordering: '-average_rating', limit: '3' })),
+        servicesAPI.list(new URLSearchParams({ limit: '6' }))
       ]);
 
       // Handle both paginated and non-paginated responses
@@ -74,17 +68,15 @@ const Index = () => {
       setApiServices(servicesData);
     } catch (err: any) {
       console.error('API Error:', err);
-      // Use import.meta.env - the warning is acceptable for Vite projects
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+      const apiBaseUrl = 'http://localhost:8000/api';
       setError(`Failed to load data from ${apiBaseUrl}. Displaying sample content.`);
       toast.error(`Unable to connect to backend at ${apiBaseUrl}.`);
-      setShops([]); // Clear potentially faulty data
-      setApiServices([]); // Clear potentially faulty data
+      setShops([]);
+      setApiServices([]);
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const features = [
     {
@@ -104,17 +96,34 @@ const Index = () => {
     },
   ];
 
-  const handleSearch = (query: string, location: string) => {
-    // Construct search parameters, ensuring empty strings are handled
-    const params = new URLSearchParams();
-    if (query) params.set('search', query);
-    if (location) params.set('location', location);
-    navigate(`/shops?${params.toString()}`);
+  const handleSearch = async (query: string, location: string) => {
+    if (!query.trim()) {
+      console.log("Search query empty, letting SearchBar handle location search.");
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/services/?search=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch services');
+      }
+      const data = await response.json();
+      
+      // Handle the direct array response from the search endpoint
+      const searchResults = Array.isArray(data) ? data : (data.results || []);
+      
+      console.log('Search results (from Index.tsx preview):', searchResults);
+      
+      // Navigation is handled by SearchBar.tsx
+      navigate(`/services?search=${encodeURIComponent(query)}`);
+    } catch (error) {
+      console.error('Search error (from Index.tsx):', error);
+      navigate(`/services?search=${encodeURIComponent(query)}`);
+    }
   };
 
   // Determine which services to display
   const displayServices = error || (apiServices.length === 0 && !isLoading) ? defaultServices : apiServices;
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,7 +149,6 @@ const Index = () => {
             <SearchBar onSearch={handleSearch} />
           </div>
 
-          {/* Popular Categories */}
           <PopularCategories onCategoryClick={(name) => navigate(`/services?category=${encodeURIComponent(name)}`)} />
         </div>
       </section>
@@ -151,7 +159,7 @@ const Index = () => {
           {error && (
             <Alert variant="destructive" className="mb-8 max-w-3xl mx-auto">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>API Error</AlertTitle> {/* Added AlertTitle */}
+              <AlertTitle>API Error</AlertTitle>
               <AlertDescription>
                 {error}
               </AlertDescription>
@@ -185,12 +193,11 @@ const Index = () => {
           ) : (
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
                 {displayServices.map((service) => {
-                   // Determine image based on name for dynamic API services or use provided for defaults
                    const imageSrc = service.image ? service.image :
                        service.name.toLowerCase().includes('mobile') ? mobileRepairIcon :
                        service.name.toLowerCase().includes('ac') ? acRepairIcon :
                        service.name.toLowerCase().includes('laptop') ? laptopRepairIcon :
-                       'https://placehold.co/100x100/e2e8f0/adb5bd?text=?'; // Generic fallback
+                       'https://placehold.co/100x100/e2e8f0/adb5bd?text=?';
 
                    return (
                       <ServiceCard
@@ -257,19 +264,19 @@ const Index = () => {
                   description={shop.description}
                   city={shop.city}
                   state={shop.state}
-                  rating={shop.average_rating || 0} // Use average_rating
+                  rating={shop.average_rating || 0}
                   isOpen={shop.is_open}
                   isVerified={shop.is_verified}
-                  cover_image={shop.cover_image} // Pass cover_image
+                  cover_image={shop.cover_image}
                 />
               ))}
             </div>
-          ) : !error ? ( // Only show "No shops" if there wasn't an API error
+          ) : !error ? (
             <div className="text-center py-12">
               <Wrench className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground text-lg">No featured shops available yet. Check back soon!</p>
             </div>
-          ) : null /* Don't show "No shops" if there was an API error */}
+          ) : null}
 
           <div className="mt-8 text-center md:hidden">
             <Button
@@ -283,7 +290,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-
 
       {/* Features Section */}
       <section className="py-20 bg-background">
@@ -373,7 +379,6 @@ const Index = () => {
             <div>
               <h4 className="font-semibold mb-4 text-foreground">Company</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                {/* Add links when About page is created */}
                 <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
@@ -397,4 +402,3 @@ const Index = () => {
 };
 
 export default Index;
-

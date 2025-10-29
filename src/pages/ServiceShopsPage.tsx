@@ -28,6 +28,11 @@ const ServiceShopsPage = () => {
       setIsLoading(true);
       setError(null);
       
+      // Validate serviceId
+      if (!serviceId || isNaN(Number(serviceId))) {
+        throw new Error('Invalid service ID');
+      }
+      
       // Fetch service details
       const serviceData = await servicesAPI.list();
       const serviceItem = Array.isArray(serviceData) 
@@ -57,12 +62,23 @@ const ServiceShopsPage = () => {
         return;
       }
       
-      // Get unique shop IDs
-      const shopIds = [...new Set(shopServices.map((s: any) => s.shop))];
+      // Get unique shop IDs and filter out any invalid ones
+      const shopIds = [...new Set(shopServices
+        .map((s: any) => s.shop)
+        .filter((id: any) => id !== null && id !== undefined && !isNaN(Number(id)))
+      )];
       
-      // Fetch shop details for each shop ID
+      if (shopIds.length === 0) {
+        setShops([]);
+        return;
+      }
+      
+      // Fetch shop details for each valid shop ID
       const shopsPromises = shopIds.map((shopId: number) => 
-        shopsAPI.get(shopId).catch(() => null)
+        shopsAPI.get(shopId).catch((err) => {
+          console.error(`Failed to fetch shop with ID ${shopId}:`, err);
+          return null;
+        })
       );
       
       const shopsResults = await Promise.all(shopsPromises);

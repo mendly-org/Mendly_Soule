@@ -1,18 +1,32 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface ServiceCardProps {
   title: string;
   image: string;
   description: string;
   onClick?: () => void;
+  id?: string | number;
+  serviceId?: string | number;
 }
 
-const ServiceCard = ({ title, image, description, onClick }: ServiceCardProps) => {
+const ServiceCard = ({ title, image, description, onClick, serviceId, id }: ServiceCardProps) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else if (serviceId || id) {
+      // Navigate to ServiceShopsPage with the serviceId or id
+      navigate(`/services/${serviceId || id}/shops`);
+    }
+  };
+
   return (
     <Card 
       className="group cursor-pointer overflow-hidden border border-border hover:shadow-[var(--shadow-card-hover)] transition-all duration-300 hover:scale-105"
-      onClick={onClick}
+      onClick={handleClick}
     >
       <CardContent className="p-6">
         <div className="relative mb-4 h-32 flex items-center justify-center bg-gradient-to-br from-accent to-muted rounded-lg overflow-hidden">

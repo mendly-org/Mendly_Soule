@@ -1,5 +1,4 @@
-// API configuration for Mendly backend
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+import { API_CONFIG, getApiUrl } from '@/config/config';
 
 // Token management
 export const getAuthToken = () => localStorage.getItem('authToken');
@@ -18,7 +17,12 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers['Authorization'] = `Token ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  // Use getApiUrl to construct the full URL
+  const url = endpoint.startsWith('http') 
+    ? endpoint // Use full URL if provided
+    : getApiUrl(endpoint); // Otherwise, use our config
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });
@@ -28,8 +32,27 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     throw new Error(error.detail || error.message || 'Request failed');
   }
 
+  // Handle 204 No Content responses
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 };
+
+// Helper to create API endpoints
+const createEndpoint = (basePath: string) => ({
+  list: (params?: URLSearchParams) => 
+    apiClient(`${basePath}${params ? `?${params.toString()}` : ''}`),
+  get: (id: number | string) => 
+    apiClient(`${basePath}${id}/`),
+  create: (data: any) => 
+    apiClient(basePath, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: number | string, data: any) => 
+    apiClient(`${basePath}${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: number | string) => 
+    apiClient(`${basePath}${id}/`, { method: 'DELETE' }),
+});
 
 // Auth API
 export const authAPI = {
@@ -42,20 +65,17 @@ export const authAPI = {
 
 // Shops API
 export const shopsAPI = {
-  list: (params?: URLSearchParams) =>
-    apiClient(`/shops/${params ? `?${params.toString()}` : ''}`),
+  ...createEndpoint('/shops/'),
   
-  get: (id: number) =>
-    apiClient(`/shops/${id}/`),
-  
-  nearby: (lat: number, lng: number, radius_km: number = 5) =>
-    apiClient(`/shops/nearby/?lat=${lat}&lng=${lng}&radius_km=${radius_km}`),
+  // Shop-specific endpoints
+  services: (shopId: number) => ({
+    ...createEndpoint(`/shops/${shopId}/services/`)
+  }),
 };
 
 // Services API
 export const servicesAPI = {
-  list: (params?: URLSearchParams) =>
-    apiClient(`/services/${params ? `?${params.toString()}` : ''}`),
+  ...createEndpoint('/services/'),
   
   categories: () =>
     apiClient('/services/categories/'),
@@ -63,13 +83,12 @@ export const servicesAPI = {
 
 // Categories API (alias for easier access)
 export const categoriesAPI = {
-  list: () => apiClient('/services/categories/'),
+  list: () => servicesAPI.categories(),
 };
 
 // Shop Services API
 export const shopServicesAPI = {
-  list: (params?: URLSearchParams) =>
-    apiClient(`/shop-services/${params ? `?${params.toString()}` : ''}`),
+  ...createEndpoint('/shop-services/'),
   
   discover: (params?: URLSearchParams) =>
     apiClient(`/shop-services/discover/${params ? `?${params.toString()}` : ''}`),
@@ -77,49 +96,42 @@ export const shopServicesAPI = {
 
 // Bookings API
 export const bookingsAPI = {
-  list: (params?: URLSearchParams) =>
-    apiClient(`/bookings/${params ? `?${params.toString()}` : ''}`),
-  
-  get: (id: number) =>
-    apiClient(`/bookings/${id}/`),
-  
-  create: (data: any) =>
-    apiClient('/bookings/', { method: 'POST', body: JSON.stringify(data) }),
+  ...createEndpoint('/bookings/'),
   
   cancel: (id: number, reason: string) =>
-    apiClient(`/bookings/${id}/cancel/`, { method: 'POST', body: JSON.stringify({ reason }) }),
+    apiClient(`/bookings/${id}/cancel/`, { 
+      method: 'POST', 
+      body: JSON.stringify({ reason }) 
+    }),
 };
 
 // Reviews API
 export const reviewsAPI = {
-  list: (params?: URLSearchParams) =>
-    apiClient(`/reviews/${params ? `?${params.toString()}` : ''}`),
-  
-  create: (data: { booking: number; rating: number; comment: string }) =>
-    apiClient('/reviews/', { method: 'POST', body: JSON.stringify(data) }),
+  ...createEndpoint('/reviews/'),
 };
 
 // Offers API
 export const offersAPI = {
-  list: (params?: URLSearchParams) =>
-    apiClient(`/offers/${params ? `?${params.toString()}` : ''}`),
+  ...createEndpoint('/offers/'),
 };
 
 // Account API
 export const accountAPI = {
   // Legacy endpoints (if present on backend)
-  getMe: () => apiClient('/auth/me/'),
+  getMe: () => apiClient('/accounts/me/'),
+  
   update: (id: number, data: any) =>
-    apiClient(`/auth/users/${id}/`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
+    apiClient(`/accounts/${id}/`, { 
+      method: 'PATCH', 
+      body: JSON.stringify(data) 
     }),
 
   // New profile endpoints (backed by accounts.urls -> /api/profile/)
   getProfile: () => apiClient('/profile/'),
+  
   updateProfile: (data: any) =>
-    apiClient('/profile/', {
-      method: 'PATCH',
-      body: JSON.stringify(data)
+    apiClient('/profile/', { 
+      method: 'PATCH', 
+      body: JSON.stringify(data) 
     }),
 };
