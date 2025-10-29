@@ -25,9 +25,11 @@ const ProfilePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
-      username: '',
-      email: '',
-      phone_number: '',
+    username: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone_number: '',
   });
 
   useEffect(() => {
@@ -36,43 +38,40 @@ const ProfilePage = () => {
       navigate('/auth', { state: { from: '/profile' } });
       return;
     }
-    if (token && !profileData) {
+    
+    if (token) {
       fetchProfile();
       fetchBookings();
-    } else if (!token && !isAuthLoading) {
-         setIsLoading(false);
-    } else if (profileData){
-         setIsLoading(false);
     }
-  }, [token, navigate, profileData, isAuthLoading]);
+  }, [token, isAuthLoading]);
 
   const fetchProfile = async () => {
-    setIsLoading(true);
-    setError(null);
     try {
-      const data = await accountAPI.getMe();
-      setProfileData(data);
+      setIsLoading(true);
+      const response = await accountAPI.getProfile();
+      setProfileData(response);
       setEditData({
-          username: data.username || '',
-          email: data.email || '',
-          phone_number: data.phone_number || '',
-      })
-    } catch (err: any) {
-      console.error('Failed to fetch profile:', err);
-      setError(err.message || 'Failed to load profile data');
-      toast.error('Failed to load profile data');
+        username: response.username || '',
+        first_name: response.first_name || '',
+        last_name: response.last_name || '',
+        email: response.email || '',
+        phone_number: response.phone_number || ''
+      });
+    } catch (error: any) {
+      console.error('Error fetching profile:', error);
+      setError(error.message || 'Failed to load profile. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const fetchBookings = async () => {
-    setIsLoadingBookings(true);
     try {
-      const data = await bookingsAPI.list();
-      setBookings(Array.isArray(data) ? data : data.results || []);
-    } catch (err: any) {
-      console.error('Failed to fetch bookings:', err);
+      setIsLoadingBookings(true);
+      const response = await bookingsAPI.list();
+      setBookings(Array.isArray(response) ? response : response.results || []);
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
       toast.error('Failed to load bookings');
     } finally {
       setIsLoadingBookings(false);
@@ -80,35 +79,28 @@ const ProfilePage = () => {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const { name, value } = e.target;
-      setEditData(prev => ({ ...prev, [name]: value }));
-  }
+    const { name, value } = e.target;
+    setEditData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!profileData?.id) return;
+    e.preventDefault();
+    if (!token) return;
 
+    try {
       setIsLoading(true);
-      try {
-          const updatedUser = await accountAPI.update(profileData.id, editData);
-          setProfileData(updatedUser);
-          setUser(updatedUser);
-          setIsEditing(false);
-          toast.success("Profile updated successfully!");
-      } catch (err: any) {
-          console.error('Failed to update profile:', err);
-           let errorMessage = err.message || 'Failed to update profile.';
-             if (err.response?.data) {
-                 const data = err.response.data;
-                 if (data.username) errorMessage = `Username: ${data.username[0]}`;
-                 else if (data.email) errorMessage = `Email: ${data.email[0]}`;
-                 else if (data.phone_number) errorMessage = `Phone: ${data.phone_number[0]}`;
-             }
-          toast.error(errorMessage);
-      } finally {
-          setIsLoading(false);
-      }
-  }
+      const response = await accountAPI.updateProfile(editData);
+      setProfileData(response);
+      setUser(user ? { ...user, ...response } : response);
+      setIsEditing(false);
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      setError('Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -255,66 +247,88 @@ const ProfilePage = () => {
             <TabsContent value="bookings">
               <Card className="shadow-lg border-border">
                 <CardHeader>
-                  <CardTitle className="text-2xl">My Bookings</CardTitle>
-                  <CardDescription>View all your service bookings and their status.</CardDescription>
+                  <CardTitle>Your Bookings</CardTitle>
+                  <CardDescription>View and manage your service appointments</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {isLoadingBookings ? (
                     <div className="space-y-4">
                       {[1, 2, 3].map((i) => (
-                        <div key={i} className="p-4 border rounded-lg">
-                          <Skeleton className="h-6 w-1/3 mb-2" />
-                          <Skeleton className="h-4 w-1/2 mb-2" />
-                          <Skeleton className="h-4 w-2/3" />
-                        </div>
+                        <Skeleton key={i} className="h-32 w-full rounded-lg" />
                       ))}
                     </div>
                   ) : bookings.length === 0 ? (
                     <div className="text-center py-12">
-                      <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No bookings yet</h3>
-                      <p className="text-muted-foreground mb-4">Start browsing shops and book your first service!</p>
-                      <Link to="/shops">
-                        <Button>Browse Shops</Button>
-                      </Link>
+                      <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium">No bookings yet</h3>
+                      <p className="text-muted-foreground mt-2">Your upcoming and past service appointments will appear here.</p>
+                      <Button className="mt-4" onClick={() => navigate('/shops')}>
+                        Book a Service
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {bookings.map((booking) => (
-                        <div key={booking.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <h3 className="font-semibold text-lg">Booking #{booking.id}</h3>
-                              <Badge className={`${getStatusColor(booking.status)} mt-2`}>
-                                {booking.status}
-                              </Badge>
-                            </div>
-                            <Link to={`/bookings/${booking.id}`}>
-                              <Button variant="outline" size="sm">View Details</Button>
-                            </Link>
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span>{formatDate(booking.booking_time)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span>Mode: {booking.service_mode}</span>
-                            </div>
-                            {booking.shop_service?.shop?.name && (
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-muted-foreground" />
-                                <span>{booking.shop_service.shop.name}</span>
+                        <Card key={booking.id} className="hover:shadow-md transition-shadow">
+                          <CardContent className="p-6">
+                            <div className="flex flex-col sm:flex-row justify-between gap-4">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <h3 className="font-semibold text-lg">{booking.service?.name || 'Service'}</h3>
+                                  <Badge className={getStatusColor(booking.status)}>
+                                    {booking.status}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-muted-foreground space-y-1">
+                                  <p className="flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" />
+                                    {formatDate(booking.booking_date)}
+                                  </p>
+                                  <p className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4" />
+                                    {booking.start_time} - {booking.end_time}
+                                  </p>
+                                  {booking.shop && (
+                                    <p className="flex items-center gap-2">
+                                      <MapPin className="h-4 w-4" />
+                                      {booking.shop.name}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                            {booking.final_price && (
-                              <div className="font-semibold text-primary mt-2">
-                                ₹{booking.final_price}
+                              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => navigate(`/bookings/${booking.id}`)}
+                                >
+                                  View Details
+                                </Button>
+                                {booking.status?.toLowerCase() === 'confirmed' && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={async () => {
+                                      if (window.confirm('Are you sure you want to cancel this booking?')) {
+                                        try {
+                                          await bookingsAPI.cancel(booking.id, 'Cancelled by user');
+                                          toast.success('Booking cancelled successfully');
+                                          fetchBookings();
+                                        } catch (error) {
+                                          console.error('Error cancelling booking:', error);
+                                          toast.error('Failed to cancel booking');
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        </div>
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))}
                     </div>
                   )}

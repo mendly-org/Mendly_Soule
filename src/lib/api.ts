@@ -107,10 +107,19 @@ export const offersAPI = {
 
 // Account API
 export const accountAPI = {
+  // Legacy endpoints (if present on backend)
   getMe: () => apiClient('/auth/me/'),
-  update: (id: number, data: any) => 
-    apiClient(`/auth/users/${id}/`, { 
-      method: 'PATCH', 
-      body: JSON.stringify(data) 
+  update: (id: number, data: any) =>
+    apiClient(`/auth/users/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+
+  // New profile endpoints (backed by accounts.urls -> /api/profile/)
+  getProfile: () => apiClient('/profile/'),
+  updateProfile: (data: any) =>
+    apiClient('/profile/', {
+      method: 'PATCH',
+      body: JSON.stringify(data)
     }),
 };
