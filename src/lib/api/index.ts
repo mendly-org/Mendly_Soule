@@ -62,6 +62,11 @@ export const servicesAPI = {
   list: (params?: URLSearchParams) => apiClient(`/services/${params ? `?${params.toString()}` : ''}`),
 };
 
+// Categories API
+export const categoriesAPI = {
+  list: () => apiClient('/services/categories/'),
+};
+
 // Shop Services API
 export const shopServicesAPI = {
   list: (params?: URLSearchParams) => apiClient(`/shop-services/${params ? `?${params.toString()}` : ''}`),

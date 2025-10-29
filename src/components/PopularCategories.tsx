@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { servicesAPI } from "../lib/api";
+import { categoriesAPI } from "../lib/api";
 
 interface Category {
   id: number;
@@ -21,8 +21,9 @@ const PopularCategories = ({ onCategoryClick }: PopularCategoriesProps) => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await servicesAPI.categories();
-        setCategories(response || []);
+        const response = await categoriesAPI.list();
+        const cats = Array.isArray(response) ? response : response.results || [];
+        setCategories(cats);
       } catch (error) {
         console.error("Failed to fetch categories:", error);
       } finally {

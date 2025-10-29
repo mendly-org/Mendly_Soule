@@ -1,15 +1,24 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Search, User, Menu } from "lucide-react";
+import { Search, User, Menu, LogOut, BookOpen } from "lucide-react";
 import SearchBar from "../components/SearchBar";
 import LocationTab from "../components/Locationtab";
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Navbar = ({ theme = "light" }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
-  const isAuthenticated = false; // TODO: connect to real auth
+  const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleSearch = () => {
@@ -67,38 +76,44 @@ const Navbar = ({ theme = "light" }) => {
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-4">
             {isAuthenticated ? (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`p-3 rounded-full shadow-md border transition-all duration-300 ${
-                    theme === "light"
-                      ? "bg-gray-100 border-gray-300 hover:bg-gray-200"
-                      : "bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  }`}
-                >
-                  <Search
-                    className={`h-5 w-5 ${
-                      theme === "light" ? "text-gray-800" : "text-white"
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`p-3 rounded-full shadow-md border transition-all duration-300 ${
+                      theme === "light"
+                        ? "bg-gray-100 border-gray-300 hover:bg-gray-200"
+                        : "bg-gray-800 border-gray-700 hover:bg-gray-700"
                     }`}
-                  />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`p-3 rounded-full shadow-md border transition-all duration-300 ${
-                    theme === "light"
-                      ? "bg-gray-100 border-gray-300 hover:bg-gray-200"
-                      : "bg-gray-800 border-gray-700 hover:bg-gray-700"
-                  }`}
-                >
-                  <User
-                    className={`h-5 w-5 ${
-                      theme === "light" ? "text-gray-800" : "text-white"
-                    }`}
-                  />
-                </Button>
-              </>
+                  >
+                    <User
+                      className={`h-5 w-5 ${
+                        theme === "light" ? "text-gray-800" : "text-white"
+                      }`}
+                    />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    {user?.username || 'My Account'}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    My Bookings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => { logout(); navigate('/'); }}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <Link to="/auth">
@@ -187,28 +202,51 @@ const Navbar = ({ theme = "light" }) => {
               </Link>
 
               <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <Link to="/auth" className="flex-1">
-                  <Button
-                    className={`w-full ${
-                      theme === "light"
-                        ? "border border-gray-300 text-gray-700 hover:bg-gray-100"
-                        : "border border-gray-700 text-gray-200 hover:bg-gray-700"
-                    }`}
-                  >
-                    Sign In
-                  </Button>
-                </Link>
-                <Link to="/auth" className="flex-1">
-                  <Button
-                    className={`w-full ${
-                      theme === "light"
-                        ? "bg-blue-500 text-white hover:bg-blue-600"
-                        : "bg-[#5ec8ff] text-gray-900 hover:bg-[#3bb4ff]"
-                    }`}
-                  >
-                    Get Started
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Button
+                      onClick={() => { navigate('/profile'); setIsMenuOpen(false); }}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Button>
+                    <Button
+                      onClick={() => { logout(); navigate('/'); setIsMenuOpen(false); }}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/auth" className="flex-1">
+                      <Button
+                        className={`w-full ${
+                          theme === "light"
+                            ? "border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            : "border border-gray-700 text-gray-200 hover:bg-gray-700"
+                        }`}
+                      >
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link to="/auth" className="flex-1">
+                      <Button
+                        className={`w-full ${
+                          theme === "light"
+                            ? "bg-blue-500 text-white hover:bg-blue-600"
+                            : "bg-[#5ec8ff] text-gray-900 hover:bg-[#3bb4ff]"
+                        }`}
+                      >
+                        Get Started
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>
