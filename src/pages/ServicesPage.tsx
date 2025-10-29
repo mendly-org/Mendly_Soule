@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { servicesAPI } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,28 +11,54 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 const ServicesPage = () => {
+  const [searchParams] = useSearchParams();
+  const categoryFilter = searchParams.get('category');
   const [services, setServices] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [allCategories, setAllCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchServices();
-  }, []);
+    fetchData();
+  }, [categoryFilter]);
 
-  const fetchServices = async () => {
+  const fetchData = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await servicesAPI.list();
-      const fetchedServices = response.results || response || [];
-      setServices(fetchedServices);
+      
+      // Fetch categories and services in parallel
+      const [categoriesResponse, servicesResponse] = await Promise.all([
+        servicesAPI.categories(),
+        servicesAPI.list()
+      ]);
+      
+      const fetchedCategories = categoriesResponse || [];
+      const fetchedServices = servicesResponse.results || servicesResponse || [];
+      
+      setAllCategories(fetchedCategories);
+      
+      // Filter services if category is selected
+      let filteredServices = fetchedServices;
+      if (categoryFilter) {
+        const selectedCategory = fetchedCategories.find(
+          (cat: any) => cat.name.toLowerCase() === categoryFilter.toLowerCase()
+        );
+        if (selectedCategory) {
+          filteredServices = fetchedServices.filter(
+            (service: any) => service.category?.id === selectedCategory.id
+          );
+        }
+      }
+      
+      setServices(filteredServices);
 
-      // Group services by category
-      const groupedCategories = fetchedServices.reduce((acc, service) => {
+      // Group filtered services by category
+      const groupedCategories = filteredServices.reduce((acc: any, service: any) => {
         const categoryId = service.category?.id;
-        if (!categoryId) return acc; // Skip services without category
+        if (!categoryId) return acc;
 
         if (!acc[categoryId]) {
           acc[categoryId] = {
@@ -61,11 +88,38 @@ const ServicesPage = () => {
       <section className="bg-gradient-to-br from-accent via-background to-muted py-12 border-b border-border">
         <div className="container mx-auto px-4">
           <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] bg-clip-text text-transparent">
-            Our Services
+            {categoryFilter ? `${categoryFilter} Services` : 'Our Services'}
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl">
-            Explore the wide range of repair services offered by verified shops on Mendly.
+            {categoryFilter 
+              ? `Browse all ${categoryFilter.toLowerCase()} repair services`
+              : 'Explore the wide range of repair services offered by verified shops on Mendly.'}
           </p>
+          
+          {/* Category Pills */}
+          {allCategories.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <Button
+                variant={!categoryFilter ? "default" : "outline"}
+                size="sm"
+                onClick={() => navigate('/services')}
+                className="rounded-full"
+              >
+                All Categories
+              </Button>
+              {allCategories.map((cat: any) => (
+                <Button
+                  key={cat.id}
+                  variant={categoryFilter === cat.name ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => navigate(`/services?category=${encodeURIComponent(cat.name)}`)}
+                  className="rounded-full"
+                >
+                  {cat.name}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -94,16 +148,21 @@ const ServicesPage = () => {
                 </div>
               ))}
             </div>
-          ) : categories.length === 0 && !error ? (
+          ) : services.length === 0 && !error ? (
              <div className="text-center py-12">
                <Wrench className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-               <p className="text-muted-foreground text-lg">
-                 No services available at the moment.
+               <p className="text-muted-foreground text-lg mb-4">
+                 No services available{categoryFilter ? ` in ${categoryFilter} category` : ''}.
                </p>
+               {categoryFilter && (
+                 <Button variant="outline" onClick={() => navigate('/services')}>
+                   View All Services
+                 </Button>
+               )}
              </div>
           ) : (
             <div className="space-y-8">
-              {categories.map((category) => (
+              {categories.map((category: any) => (
                 <div key={category.id}>
                   <h2 className="text-2xl font-semibold mb-4 text-foreground border-b pb-2">{category.name}</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -111,7 +170,7 @@ const ServicesPage = () => {
                       <Card
                         key={service.id}
                         className="group cursor-pointer hover:shadow-[var(--shadow-card-hover)] transition-all duration-300"
-                        onClick={() => navigate(`/shops?service=${encodeURIComponent(service.name)}`)} // Encode service name
+                        onClick={() => navigate(`/shops?service=${encodeURIComponent(service.name)}`)}
                       >
                         <CardHeader>
                           <CardTitle className="group-hover:text-primary transition-colors">{service.name}</CardTitle>

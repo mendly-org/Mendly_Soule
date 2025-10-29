@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import SearchBar from "../components/SearchBar";
 import ServiceCard from "../components/ServiceCard";
 import ShopCard from "../components/ShopCard";
+import PopularCategories from "../components/PopularCategories";
 import { Button } from "../components/ui/button";
 import { Shield, Clock, Award, ArrowRight, AlertCircle, Wrench } from "lucide-react"; // Added Wrench
 import { useNavigate } from "react-router-dom";
@@ -139,21 +140,8 @@ const Index = () => {
             <SearchBar onSearch={handleSearch} />
           </div>
 
-          {/* Popular Services */}
-          <div className="mt-12 flex flex-wrap justify-center gap-3">
-            <span className="text-muted-foreground text-sm">Popular:</span>
-            {["Screen Repair", "Battery Replacement", "AC Cleaning", "Laptop Upgrade"].map((service) => (
-              <Button
-                key={service}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-                onClick={() => handleSearch(service, "")}
-              >
-                {service}
-              </Button>
-            ))}
-          </div>
+          {/* Popular Categories */}
+          <PopularCategories onCategoryClick={(name) => navigate(`/services?category=${encodeURIComponent(name)}`)} />
         </div>
       </section>
 
