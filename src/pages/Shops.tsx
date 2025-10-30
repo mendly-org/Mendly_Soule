@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal, AlertCircle, MapPin, Star, Shield, Clock } from "lucide-react";
-import { shopServicesAPI } from "@/lib/api";
+import { shopServicesAPI, shopsAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -81,8 +81,12 @@ const Shops = () => {
       
       const searchQuery = searchParams.get('search');
       const locationQuery = searchParams.get('location') || searchParams.get('city');
+      const serviceQuery = searchParams.get('service');
       
-      if (searchQuery) {
+      // If service filter is present, search by service name
+      if (serviceQuery) {
+        params.set('search', serviceQuery);
+      } else if (searchQuery) {
         params.set('search', searchQuery);
       }
       
@@ -91,15 +95,26 @@ const Shops = () => {
       const shopServicesResponse = await shopServicesAPI.discover(params);
       const shopServices = shopServicesResponse.results || shopServicesResponse || [];
       
-      // Extract unique shops from shop services
-      const uniqueShopsMap = new Map();
+      // Extract unique shop IDs from shop services
+      const uniqueShopIds = new Set();
       shopServices.forEach((shopService: any) => {
-        if (shopService.shop && !uniqueShopsMap.has(shopService.shop.id)) {
-          uniqueShopsMap.set(shopService.shop.id, shopService.shop);
+        if (shopService.shop) {
+          // shop might be an ID or an object
+          const shopId = typeof shopService.shop === 'object' ? shopService.shop.id : shopService.shop;
+          uniqueShopIds.add(shopId);
         }
       });
       
-      let shopsData = Array.from(uniqueShopsMap.values());
+      // Fetch full shop details for each shop ID
+      const shopDetailsPromises = Array.from(uniqueShopIds).map((shopId: any) => 
+        shopsAPI.get(shopId).catch(err => {
+          console.error(`Failed to fetch shop ${shopId}:`, err);
+          return null;
+        })
+      );
+      
+      const shopDetails = await Promise.all(shopDetailsPromises);
+      let shopsData = shopDetails.filter(shop => shop !== null);
         
       // Apply additional filters
       const verifiedFilter = searchParams.get('is_verified') === 'true';
