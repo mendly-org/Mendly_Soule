@@ -75,6 +75,18 @@ const Navbar = ({ theme = "light" }) => {
 
           {/* Right Actions */}
           <div className="hidden md:flex items-center gap-4">
+            <Link to="/how-it-works" className="text-sm font-medium text-foreground/80 hover:text-foreground">
+              How It Works
+            </Link>
+            <Link to="/about" className="text-sm font-medium text-foreground/80 hover:text-foreground">
+              About
+            </Link>
+            <Link to="/faq" className="text-sm font-medium text-foreground/80 hover:text-foreground">
+              FAQ
+            </Link>
+            <Link to="/contact" className="text-sm font-medium text-foreground/80 hover:text-foreground">
+              Contact
+            </Link>
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -199,6 +211,39 @@ const Navbar = ({ theme = "light" }) => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 About
+              </Link>
+              <Link
+                to="/how-it-works"
+                className={`px-4 py-2 ${
+                  theme === "light"
+                    ? "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-300 hover:bg-gray-700"
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                How It Works
+              </Link>
+              <Link
+                to="/faq"
+                className={`px-4 py-2 ${
+                  theme === "light"
+                    ? "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-300 hover:bg-gray-700"
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                FAQ
+              </Link>
+              <Link
+                to="/contact"
+                className={`px-4 py-2 ${
+                  theme === "light"
+                    ? "text-gray-700 hover:bg-gray-100"
+                    : "text-gray-300 hover:bg-gray-700"
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Contact
               </Link>
 
               <div className="flex gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">

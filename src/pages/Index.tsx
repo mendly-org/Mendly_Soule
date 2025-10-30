@@ -4,6 +4,7 @@ import SearchBar from "@/components/SearchBar";
 import ServiceCard from "@/components/ServiceCard";
 import ShopCard from "@/components/ShopCard";
 import PopularCategories from "@/components/PopularCategories";
+import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Shield, Clock, Award, ArrowRight, AlertCircle, Wrench } from "lucide-react"; 
 import { useNavigate } from "react-router-dom";
@@ -15,7 +16,7 @@ import { shopsAPI, servicesAPI } from "@/lib/api";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; 
-import { Card, CardContent } from "@/components/ui/card"; 
+import { Card, CardContent } from "@/components/ui/card";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -357,46 +358,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-muted py-12 border-t border-border">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="font-bold text-lg mb-4 text-foreground">Mendly</h3>
-              <p className="text-muted-foreground text-sm">
-                Your trusted platform for electronic device repairs
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 text-foreground">Services</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><button onClick={() => navigate('/services')} className="hover:text-primary transition-colors text-left w-full">All Services</button></li>
-                <li><button onClick={() => navigate('/shops?service=Mobile%20Repair')} className="hover:text-primary transition-colors text-left w-full">Mobile Repair</button></li>
-                <li><button onClick={() => navigate('/shops?service=AC%20Service')} className="hover:text-primary transition-colors text-left w-full">AC Service</button></li>
-                <li><button onClick={() => navigate('/shops?service=Laptop%20Repair')} className="hover:text-primary transition-colors text-left w-full">Laptop Repair</button></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 text-foreground">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Careers</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4 text-foreground">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-primary transition-colors">Privacy Policy</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Terms of Service</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Mendly. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

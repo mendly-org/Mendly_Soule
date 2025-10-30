@@ -1,4 +1,7 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Properly construct API base URL
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const cleanBaseUrl = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL;
+export const API_BASE_URL = `${cleanBaseUrl}/api`;
 
 export const API_ENDPOINTS = {
   AUTH: {

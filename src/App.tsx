@@ -10,10 +10,14 @@ import Auth from "./pages/Auth";
 import ServicesPage from "./pages/ServicesPage";
 import ProfilePage from "@/pages/ProfilePage";
 import Dashboard from "./pages/Dashboard";
-import BookingDetailPage from "@/pages/BookingDetailPage"; // New
-import BookService from "./pages/BookService"; // New (assuming it wasn't routed)
+import BookingDetailPage from "@/pages/BookingDetailPage";
+import BookService from "./pages/BookService";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import FAQ from "./pages/FAQ";
+import HowItWorks from "./pages/HowItWorks";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "./hooks/useAuth"; // New
+import { AuthProvider } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
 
@@ -27,14 +31,17 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/shops" element={<Shops />} />
-            <Route path="/shops/:id" element={<ShopDetailPage />} /> {/* New */}
-            <Route path="/services" element={<ServicesPage />} /> {/* New */}
-            <Route path="/book" element={<BookService />} /> {/* New - Ensure BookService exists */}
-            <Route path="/dashboard" element={<Dashboard />} /> {/* Assuming Dashboard exists */}
-            <Route path="/bookings/:id" element={<BookingDetailPage />} /> {/* New */}
-            <Route path="/profile" element={<ProfilePage />} /> {/* New */}
+            <Route path="/shops/:id" element={<ShopDetailPage />} />
+            <Route path="/services" element={<ServicesPage />} />
+            <Route path="/book" element={<BookService />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/bookings/:id" element={<BookingDetailPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/auth" element={<Auth />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
